@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+  body { margin: 0; background: #F4F6F8; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; }
+  a { color: #2254F4; text-decoration: none; }
+  a:hover { color: #178CFF; text-decoration: underline; }
+  input { font-family: inherit; }
+</style>
+</helmet>
+
+<div style="min-height: 100vh; padding: 40px; display: flex; flex-direction: column; gap: 28px; align-items: center; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;">
+
+  <div style="width: 100%; max-width: 1180px; display: flex; justify-content: space-between; align-items: flex-end; gap: 32px;">
+    <div style="display: flex; flex-direction: column; gap: 8px;">
+      <div style="font-size: 13px; font-weight: 700; letter-spacing: 1.6px; text-transform: uppercase; color: #2254F4;">Data Spectrum builder</div>
+      <div style="font-size: 15px; line-height: 1.45; color: #444; max-width: 620px; text-wrap: pretty;">Drag any example to move it along the spectrum and to lengthen its stem. Add, rename or remove examples below, then export.</div>
+    </div>
+    <div style="display: flex; gap: 10px; flex: 0 0 auto;">
+      <button onClick="{{ exportSvg }}" style="padding: 11px 18px; border: 0; background: #2254F4; color: #fff; font-size: 15px; font-weight: 700; cursor: pointer;" style-hover="background: #178CFF;">Export SVG</button>
+      <button onClick="{{ exportPng }}" style="padding: 11px 18px; border: 1px solid #C3CAD3; background: #fff; color: #111; font-size: 15px; font-weight: 700; cursor: pointer;" style-hover="border-color: #2254F4; color: #2254F4;">Export PNG</button>
+    </div>
+  </div>
+
+  <div style="width: 100%; max-width: 1180px; background: #06090F;">
+    <svg ref="{{ svgRef }}" viewBox="0 0 1180 500" width="100%" style="display: block; user-select: none; touch-action: none;" font-family="Helvetica Neue, Helvetica, Arial, sans-serif">
+      <defs>
+        <linearGradient id="dsBand" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stop-color="#131B24" />
+          <stop offset="9%" stop-color="#1B2A3E" />
+          <stop offset="34%" stop-color="#2254F4" />
+          <stop offset="52%" stop-color="#178CFF" />
+          <stop offset="68%" stop-color="#00B6FF" />
+          <stop offset="84%" stop-color="#08DEF9" />
+          <stop offset="100%" stop-color="#CFF3FD" />
+        </linearGradient>
+        <pattern id="dsHatch" width="7" height="1" patternUnits="userSpaceOnUse">
+          <rect x="0" y="0" width="1" height="1" fill="#ffffff" opacity="0.24" />
+        </pattern>
+        <linearGradient id="dsFadeGrad" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stop-color="#ffffff" />
+          <stop offset="58%" stop-color="#000000" />
+        </linearGradient>
+        <mask id="dsFade" maskUnits="userSpaceOnUse" x="64" y="300" width="1052" height="74">
+          <rect x="64" y="300" width="1052" height="74" fill="url(#dsFadeGrad)" />
+        </mask>
+      </defs>
+
+      <rect x="0" y="0" width="1180" height="500" fill="#06090F" />
+
+      {{ headerEls }}
+
+      <sc-if value="{{ showHills }}" hint-placeholder-val="{{ true }}">
+        <g>
+          <polygon points="137.6,278 274.4,374 0.8,374" fill="{{ hillColor }}" />
+          <polygon points="253.4,236 400.7,374 106.1,374" fill="{{ hillColor }}" />
+          <polygon points="379.6,270 505.8,374 253.4,374" fill="{{ hillColor }}" />
+          <polygon points="495.3,254 642.6,374 348,374" fill="{{ hillColor }}" />
+          <polygon points="590,236 737.3,374 442.7,374" fill="{{ hillColor }}" />
+          <polygon points="726.8,268 853,374 600.6,374" fill="{{ hillColor }}" />
+          <polygon points="821.4,252 958.2,374 684.6,374" fill="{{ hillColor }}" />
+          <polygon points="926.6,236 1073.9,374 779.3,374" fill="{{ hillColor }}" />
+          <polygon points="1041.4,274 1167.6,374 915.2,374" fill="{{ hillColor }}" />
+        </g>
+      </sc-if>
+
+      <g>
+        <rect x="64" y="300" width="1052" height="74" fill="url(#dsBand)" />
+        <rect x="64" y="300" width="1052" height="74" fill="url(#dsHatch)" mask="url(#dsFade)" />
+        <rect x="64" y="300" width="73.6" height="74" fill="#131B24" />
+        <rect x="1042.4" y="300" width="73.6" height="74" fill="#CFF3FD" />
+        <rect x="137.6" y="300" width="2" height="74" fill="#ffffff" opacity="0.45" />
+        <rect x="1040.4" y="300" width="2" height="74" fill="#0B0F14" opacity="0.35" />
+      </g>
+
+      {{ pinEls }}
+
+      <text x="64" y="420" font-size="30" font-weight="700" letter-spacing="-0.4" fill="#ffffff">Closed</text>
+      <text x="590" y="420" text-anchor="middle" font-size="30" font-weight="700" letter-spacing="-0.4" fill="#ffffff">Shared</text>
+      <text x="1116" y="420" text-anchor="end" font-size="30" font-weight="700" letter-spacing="-0.4" fill="#ffffff">Open</text>
+
+      {{ footerEls }}
+    </svg>
+  </div>
+
+  <div style="width: 100%; max-width: 1180px; display: grid; grid-template-columns: 1fr 320px; gap: 24px; align-items: start;">
+
+    <div style="background: #fff; border: 1px solid #E2E6EA; padding: 24px; display: flex; flex-direction: column; gap: 16px;">
+      <div style="display: flex; justify-content: space-between; align-items: baseline; gap: 16px;">
+        <div style="font-size: 17px; font-weight: 700; color: #111;">Examples</div>
+        <div style="font-size: 13px; color: #8A939E;">0 = fully closed · 100 = fully open</div>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        <sc-for list="{{ pins }}" as="p" hint-placeholder-count="6">
+          <div style="display: grid; grid-template-columns: 1fr 88px 88px 34px; gap: 10px; align-items: center;">
+            <input value="{{ p.label }}" onChange="{{ p.onLabel }}" placeholder="Example name" style="padding: 9px 11px; border: 1px solid #D7DCE2; font-size: 15px; color: #111; min-width: 0;" />
+            <input type="number" min="0" max="100" step="0.5" value="{{ p.xRounded }}" onChange="{{ p.onX }}" style="padding: 9px 11px; border: 1px solid #D7DCE2; font-size: 15px; color: #111; min-width: 0;" />
+            <input type="number" min="20" max="160" step="2" value="{{ p.stemH }}" onChange="{{ p.onStem }}" style="padding: 9px 11px; border: 1px solid #D7DCE2; font-size: 15px; color: #111; min-width: 0;" />
+            <button onClick="{{ p.onRemove }}" title="Remove" style="height: 36px; border: 1px solid #D7DCE2; background: #fff; color: #8A939E; font-size: 17px; line-height: 1; cursor: pointer;" style-hover="border-color: #D0021B; color: #D0021B;">×</button>
+          </div>
+        </sc-for>
+      </div>
+
+      <div style="display: flex; gap: 10px;">
+        <button onClick="{{ addExample }}" style="padding: 10px 16px; border: 1px solid #2254F4; background: #fff; color: #2254F4; font-size: 15px; font-weight: 700; cursor: pointer;" style-hover="background: #2254F4; color: #fff;">Add example</button>
+        <button onClick="{{ tidy }}" style="padding: 10px 16px; border: 1px solid #C3CAD3; background: #fff; color: #444; font-size: 15px; font-weight: 700; cursor: pointer;" style-hover="border-color: #111; color: #111;">Auto-stagger stems</button>
+        <button onClick="{{ reset }}" style="padding: 10px 16px; border: 0; background: transparent; color: #8A939E; font-size: 15px; cursor: pointer;" style-hover="color: #111;">Reset</button>
+      </div>
+    </div>
+
+    <div style="background: #fff; border: 1px solid #E2E6EA; padding: 24px; display: flex; flex-direction: column; gap: 14px;">
+      <div style="font-size: 17px; font-weight: 700; color: #111;">Graphic text</div>
+      <label style="display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: #5A6472;">Title
+        <input value="{{ title }}" onChange="{{ onTitle }}" style="padding: 9px 11px; border: 1px solid #D7DCE2; font-size: 15px; color: #111; min-width: 0;" />
+      </label>
+      <label style="display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: #5A6472;">Standfirst (under the title)
+        <input value="{{ question }}" onChange="{{ onQuestion }}" style="padding: 9px 11px; border: 1px solid #D7DCE2; font-size: 15px; color: #111; min-width: 0;" />
+      </label>
+      <label style="display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: #5A6472;">Footnote
+        <input value="{{ footer }}" onChange="{{ onFooter }}" style="padding: 9px 11px; border: 1px solid #D7DCE2; font-size: 15px; color: #111; min-width: 0;" />
+      </label>
+
+      <div style="height: 1px; background: #E2E6EA; margin: 4px 0;"></div>
+
+      <div style="font-size: 17px; font-weight: 700; color: #111;">Graphic options</div>
+
+      <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px;">
+        <span style="font-size: 15px; color: #111;">Hills behind band</span>
+        <button onClick="{{ toggleHills }}" style="padding: 7px 14px; border: 1px solid #2254F4; font-size: 13px; font-weight: 700; cursor: pointer; background: {{ hillsBg }}; color: {{ hillsFg }};">{{ hillsLabel }}</button>
+      </div>
+
+      <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px;">
+        <span style="font-size: 15px; color: #111;">Footnote row</span>
+        <button onClick="{{ toggleFooter }}" style="padding: 7px 14px; border: 1px solid #2254F4; font-size: 13px; font-weight: 700; cursor: pointer; background: {{ footerBg }}; color: {{ footerFg }};">{{ footerLabel }}</button>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        <span style="font-size: 13px; color: #5A6472;">Hill colour</span>
+        <div style="display: flex; gap: 8px;">
+          <sc-for list="{{ hillSwatches }}" as="sw" hint-placeholder-count="4">
+            <button onClick="{{ sw.onPick }}" title="{{ sw.name }}" style="width: 46px; height: 34px; cursor: pointer; padding: 0; background: {{ sw.hex }}; border: 2px solid {{ sw.outline }};"></button>
+          </sc-for>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1280,&quot;height&quot;:900},&quot;showHills&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Graphic&quot;},&quot;showFooter&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Graphic&quot;},&quot;hillColor&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;#16202C&quot;,&quot;options&quot;:[&quot;#16202C&quot;,&quot;#1B2A3E&quot;,&quot;#0F1720&quot;,&quot;#233046&quot;],&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Graphic&quot;}}">
+const X0 = 64, W = 1052, BAND_TOP = 300;
+const DEFAULTS = [
+  { label: 'PIN codes and passwords', x: 1.5, stem: 34 },
+  { label: 'Your bank account', x: 21, stem: 86 },
+  { label: 'Medical records', x: 34, stem: 34 },
+  { label: 'Medical research data', x: 53, stem: 86 },
+  { label: 'Company annual reports', x: 74, stem: 34 },
+  { label: 'Transport timetables', x: 98.5, stem: 86 }
+];
+
+class Component extends DCLogic {
+  state = {
+    examples: DEFAULTS.map((d, i) => ({ id: i + 1, ...d })),
+    nextId: DEFAULTS.length + 1,
+    title: 'The Data Spectrum',
+    question: 'Where does your data sit?',
+    footer: 'Every example sits between reference points — that is the point, not a compromise.',
+    active: null,
+    hillsOn: null,
+    footerOn: null,
+    hill: null
+  };
+
+  hillOptions = [
+    { hex: '#16202C', name: 'Charcoal navy' },
+    { hex: '#1B2A3E', name: 'Deep navy' },
+    { hex: '#0F1720', name: 'Near black' },
+    { hex: '#233046', name: 'Slate' }
+  ];
+  svgRef = React.createRef();
+
+  measure(text) {
+    if (!this._ctx) this._ctx = document.createElement('canvas').getContext('2d');
+    this._ctx.font = '15px "Helvetica Neue", Helvetica, Arial, sans-serif';
+    return this._ctx.measureText(text || '').width;
+  }
+
+  toSvg(clientX, clientY) {
+    const el = this.svgRef.current;
+    const r = el.getBoundingClientRect();
+    const s = 1180 / r.width;
+    return { x: (clientX - r.left) * s, y: (clientY - r.top) * s };
+  }
+
+  startDrag(id, e) {
+    e.preventDefault();
+    e.stopPropagation();
+    const ex = this.state.examples.find(v => v.id === id);
+    if (!ex) return;
+    const start = this.toSvg(e.clientX, e.clientY);
+    const startX = ex.x, startStem = ex.stem;
+    this.setState({ active: id });
+    const move = (ev) => {
+      const p = this.toSvg(ev.clientX, ev.clientY);
+      const dx = ((p.x - start.x) / W) * 100;
+      const dy = p.y - start.y;
+      this.update(id, {
+        x: Math.max(0, Math.min(100, Math.round((startX + dx) * 10) / 10)),
+        stem: Math.max(20, Math.min(160, Math.round(startStem - dy)))
+      });
+    };
+    const up = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      this.setState({ active: null });
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  }
+
+  update(id, patch) {
+    this.setState(s => ({ examples: s.examples.map(e => e.id === id ? { ...e, ...patch } : e) }));
+  }
+
+  addExample = () => {
+    this.setState(s => ({
+      examples: s.examples.concat({ id: s.nextId, label: 'New example', x: 50, stem: s.examples.length % 2 ? 34 : 118 }),
+      nextId: s.nextId + 1
+    }));
+  };
+
+  tidy = () => {
+    this.setState(s => {
+      const order = s.examples.slice().sort((a, b) => a.x - b.x);
+      const heights = [34, 86, 138];
+      order.forEach((e, i) => { e.stem = heights[i % heights.length]; });
+      return { examples: s.examples.slice() };
+    });
+  };
+
+  reset = () => this.setState({ examples: DEFAULTS.map((d, i) => ({ id: i + 1, ...d })), nextId: DEFAULTS.length + 1 });
+
+  serialize() {
+    const clone = this.svgRef.current.cloneNode(true);
+    clone.removeAttribute('style');
+    clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+    clone.setAttribute('width', '1180');
+    clone.setAttribute('height', '500');
+    clone.querySelectorAll('[data-ui="hit"]').forEach(n => n.remove());
+    return new XMLSerializer().serializeToString(clone);
+  }
+
+  download(blob, name) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+  }
+
+  exportSvg = () => {
+    this.download(new Blob([this.serialize()], { type: 'image/svg+xml' }), 'data-spectrum.svg');
+  };
+
+  exportPng = () => {
+    const svg = this.serialize();
+    const img = new Image();
+    img.onload = () => {
+      const c = document.createElement('canvas');
+      c.width = 2360; c.height = 1000;
+      const ctx = c.getContext('2d');
+      ctx.scale(2, 2);
+      ctx.drawImage(img, 0, 0);
+      c.toBlob(b => this.download(b, 'data-spectrum.png'), 'image/png');
+    };
+    img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+  };
+
+  renderVals() {
+    const s = this.state;
+    const pins = s.examples.map(e => {
+      const cx = X0 + (e.x / 100) * W;
+      const boxW = Math.round(this.measure(e.label)) + 22;
+      const boxY = BAND_TOP - e.stem - 28;
+      let boxX = cx - boxW / 2;
+      boxX = Math.max(X0, Math.min(X0 + W - boxW, boxX));
+      let anchor = 'middle', textX = boxX + boxW / 2;
+      if (boxX <= X0 + 0.5) { anchor = 'start'; textX = boxX + 11; }
+      else if (boxX + boxW >= X0 + W - 0.5) { anchor = 'end'; textX = boxX + boxW - 11; }
+      return {
+        label: e.label,
+        cx: Math.round(cx * 10) / 10,
+        boxX: Math.round(boxX * 10) / 10,
+        boxY: boxY,
+        boxW: boxW,
+        hitX: Math.round(boxX * 10) / 10,
+        hitH: e.stem + 28,
+        textX: Math.round(textX * 10) / 10,
+        textY: boxY + 19,
+        anchor: anchor,
+        stemX: Math.round(cx * 10) / 10 - 0.5,
+        stemY: BAND_TOP - e.stem,
+        stemH: e.stem,
+        xRounded: e.x,
+        strokeOpacity: s.active === e.id ? 0.9 : 0.28,
+        onDown: (ev) => this.startDrag(e.id, ev),
+        onLabel: (ev) => this.update(e.id, { label: ev.target.value }),
+        onX: (ev) => this.update(e.id, { x: Math.max(0, Math.min(100, Number(ev.target.value) || 0)) }),
+        onStem: (ev) => this.update(e.id, { stem: Math.max(20, Math.min(160, Number(ev.target.value) || 20)) }),
+        onRemove: () => this.setState(st => ({ examples: st.examples.filter(v => v.id !== e.id) }))
+      };
+    });
+
+    const h = React.createElement;
+    const LOGO_H = 36, LOGO_SCALE = LOGO_H / 202, LOGO_W = 472 * LOGO_SCALE;
+    const headerEls = h('g', { key: 'hdr' },
+      h('text', { x: 64, y: 78, fontSize: 27, fontWeight: 700, letterSpacing: '-0.3', fill: '#ffffff' }, s.title),
+      s.question ? h('text', { x: 64, y: 104, fontSize: 15, fill: '#ffffff', opacity: 0.6 }, s.question) : null,
+      h('g', { transform: 'translate(' + (1116 - LOGO_W) + ',56) scale(' + LOGO_SCALE + ')' },
+        h('circle', { cx: 101, cy: 101, r: 101, fill: '#ffffff' }),
+        h('path', { d: 'M204,2 H283 A99,99 0 0 1 283,200 H204 Z', fill: '#ffffff' }),
+        h('rect', { x: 384, y: 2, width: 88, height: 198, fill: '#ffffff' })
+      )
+    );
+
+    const pinEls = h('g', { key: 'pins' }, pins.map((p, i) => h('g', { key: i },
+      h('rect', { x: p.boxX, y: p.boxY, width: p.boxW, height: 28, fill: '#06090F', fillOpacity: 0.85, stroke: '#ffffff', strokeOpacity: p.strokeOpacity }),
+      h('text', { x: p.textX, y: p.textY, textAnchor: p.anchor, fontSize: 15, fill: '#ffffff' }, p.label),
+      h('rect', { x: p.stemX, y: p.stemY, width: 1, height: p.stemH, fill: '#ffffff', fillOpacity: 0.55 }),
+      h('circle', { cx: p.cx, cy: 300, r: 5.5, fill: '#ffffff' }),
+      h('rect', { 'data-ui': 'hit', x: p.hitX, y: p.boxY, width: p.boxW, height: p.hitH, fill: 'transparent', cursor: 'move', onPointerDown: p.onDown })
+    )));
+
+    const showHills = s.hillsOn ?? (this.props.showHills ?? true);
+    const showFooter = s.footerOn ?? (this.props.showFooter ?? true);
+    const hillColor = s.hill ?? (this.props.hillColor ?? '#16202C');
+
+    const footerEls = !showFooter ? null : h('g', { key: 'ftr' },
+      h('text', { x: 64, y: 466, fontSize: 13, fill: '#ffffff', opacity: 0.45 }, s.footer),
+      h('text', { x: 1116, y: 466, textAnchor: 'end', fontSize: 13, fill: '#ffffff', opacity: 0.45 }, 'CC BY · theodi.org/data-spectrum')
+    );
+
+    return {
+      pins: pins,
+      headerEls: headerEls,
+      pinEls: pinEls,
+      footerEls: footerEls,
+      svgRef: this.svgRef,
+      title: s.title,
+      question: s.question,
+      footer: s.footer,
+      onTitle: (ev) => this.setState({ title: ev.target.value }),
+      onQuestion: (ev) => this.setState({ question: ev.target.value }),
+      onFooter: (ev) => this.setState({ footer: ev.target.value }),
+      addExample: this.addExample,
+      tidy: this.tidy,
+      reset: this.reset,
+      exportSvg: this.exportSvg,
+      exportPng: this.exportPng,
+      showHills: showHills,
+      showFooter: showFooter,
+      hillColor: hillColor,
+      hillsLabel: showHills ? 'On' : 'Off',
+      footerLabel: showFooter ? 'On' : 'Off',
+      hillsBg: showHills ? '#2254F4' : '#fff',
+      hillsFg: showHills ? '#fff' : '#5A6472',
+      footerBg: showFooter ? '#2254F4' : '#fff',
+      footerFg: showFooter ? '#fff' : '#5A6472',
+      toggleHills: () => this.setState({ hillsOn: !showHills }),
+      toggleFooter: () => this.setState({ footerOn: !showFooter }),
+      hillSwatches: this.hillOptions.map(o => ({
+        hex: o.hex,
+        name: o.name,
+        outline: o.hex === hillColor ? '#2254F4' : '#D7DCE2',
+        onPick: () => this.setState({ hill: o.hex })
+      }))
+    };
+  }
+}
+</script>
+</body>
+</html>
