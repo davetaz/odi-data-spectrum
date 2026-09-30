@@ -23,7 +23,10 @@
       <div style="font-size: 13px; font-weight: 700; letter-spacing: 1.6px; text-transform: uppercase; color: #2254F4;">Data Spectrum builder</div>
       <div style="font-size: 15px; line-height: 1.45; color: #444; max-width: 620px; text-wrap: pretty;">Drag any example to move it along the spectrum and to lengthen its stem. Add, rename or remove examples below, then export.</div>
     </div>
-    <div style="display: flex; gap: 10px; flex: 0 0 auto;">
+    <div style="display: flex; gap: 10px; flex: 0 0 auto; flex-wrap: wrap; justify-content: flex-end;">
+      <button onClick="{{ exportData }}" style="padding: 11px 18px; border: 1px solid #2254F4; background: #fff; color: #2254F4; font-size: 15px; font-weight: 700; cursor: pointer;" style-hover="background: #2254F4; color: #fff;">Export data</button>
+      <button onClick="{{ importDataClick }}" style="padding: 11px 18px; border: 1px solid #C3CAD3; background: #fff; color: #111; font-size: 15px; font-weight: 700; cursor: pointer;" style-hover="border-color: #2254F4; color: #2254F4;">Import data</button>
+      <input ref="{{ fileInputRef }}" type="file" accept=".json,application/json" onChange="{{ importDataFile }}" style="display: none;" />
       <button onClick="{{ exportSvg }}" style="padding: 11px 18px; border: 0; background: #2254F4; color: #fff; font-size: 15px; font-weight: 700; cursor: pointer;" style-hover="background: #178CFF;">Export SVG</button>
       <button onClick="{{ exportPng }}" style="padding: 11px 18px; border: 1px solid #C3CAD3; background: #fff; color: #111; font-size: 15px; font-weight: 700; cursor: pointer;" style-hover="border-color: #2254F4; color: #2254F4;">Export PNG</button>
     </div>
@@ -109,11 +112,14 @@
         </sc-for>
       </div>
 
-      <div style="display: flex; gap: 10px;">
+      <div style="display: flex; gap: 10px; flex-wrap: wrap;">
         <button onClick="{{ addExample }}" style="padding: 10px 16px; border: 1px solid #2254F4; background: #fff; color: #2254F4; font-size: 15px; font-weight: 700; cursor: pointer;" style-hover="background: #2254F4; color: #fff;">Add example</button>
         <button onClick="{{ tidy }}" style="padding: 10px 16px; border: 1px solid #C3CAD3; background: #fff; color: #444; font-size: 15px; font-weight: 700; cursor: pointer;" style-hover="border-color: #111; color: #111;">Auto-stagger stems</button>
+        <button onClick="{{ exportData }}" style="padding: 10px 16px; border: 1px solid #C3CAD3; background: #fff; color: #444; font-size: 15px; font-weight: 700; cursor: pointer;" style-hover="border-color: #2254F4; color: #2254F4;">Export data</button>
+        <button onClick="{{ importDataClick }}" style="padding: 10px 16px; border: 1px solid #C3CAD3; background: #fff; color: #444; font-size: 15px; font-weight: 700; cursor: pointer;" style-hover="border-color: #2254F4; color: #2254F4;">Import data</button>
         <button onClick="{{ reset }}" style="padding: 10px 16px; border: 0; background: transparent; color: #8A939E; font-size: 15px; cursor: pointer;" style-hover="color: #111;">Reset</button>
       </div>
+      <div style="font-size: 13px; color: #8A939E; line-height: 1.4;">Export / import saves labels, positions, stems, title and options as a JSON file you can reuse offline.</div>
     </div>
 
     <div style="background: #fff; border: 1px solid #E2E6EA; padding: 24px; display: flex; flex-direction: column; gap: 14px;">
@@ -186,11 +192,51 @@ class Component extends DCLogic {
     { hex: '#233046', name: 'Slate' }
   ];
   svgRef = React.createRef();
+  fileInputRef = React.createRef();
 
   measure(text) {
     if (!this._ctx) this._ctx = document.createElement('canvas').getContext('2d');
     this._ctx.font = '15px "Helvetica Neue", Helvetica, Arial, sans-serif';
     return this._ctx.measureText(text || '').width;
+  }
+
+  /** Split label into wrapped lines that fit maxWidth (px). */
+  wrapLabel(text, maxWidth) {
+    const raw = String(text || '').trim() || ' ';
+    const words = raw.split(/\s+/);
+    const lines = [];
+    let line = '';
+
+    const pushHardBroken = (word) => {
+      let chunk = '';
+      for (const ch of word) {
+        const trial = chunk + ch;
+        if (this.measure(trial) <= maxWidth || !chunk) chunk = trial;
+        else {
+          lines.push(chunk);
+          chunk = ch;
+        }
+      }
+      if (chunk) line = chunk;
+    };
+
+    for (const word of words) {
+      const trial = line ? `${line} ${word}` : word;
+      if (this.measure(trial) <= maxWidth) {
+        line = trial;
+      } else if (!line) {
+        pushHardBroken(word);
+      } else {
+        lines.push(line);
+        if (this.measure(word) <= maxWidth) line = word;
+        else {
+          line = '';
+          pushHardBroken(word);
+        }
+      }
+    }
+    if (line) lines.push(line);
+    return lines.length ? lines : [' '];
   }
 
   toSvg(clientX, clientY) {
@@ -246,7 +292,100 @@ class Component extends DCLogic {
     });
   };
 
-  reset = () => this.setState({ examples: DEFAULTS.map((d, i) => ({ id: i + 1, ...d })), nextId: DEFAULTS.length + 1 });
+  reset = () => this.setState({
+    examples: DEFAULTS.map((d, i) => ({ id: i + 1, ...d })),
+    nextId: DEFAULTS.length + 1,
+    title: 'The Data Spectrum',
+    question: 'Where does your data sit?',
+    footer: 'Every example sits between reference points — that is the point, not a compromise.',
+    hillsOn: null,
+    footerOn: null,
+    hill: null
+  });
+
+  buildDataPayload() {
+    const s = this.state;
+    const showHills = s.hillsOn ?? (this.props.showHills ?? true);
+    const showFooter = s.footerOn ?? (this.props.showFooter ?? true);
+    const hillColor = s.hill ?? (this.props.hillColor ?? '#16202C');
+    return {
+      version: 1,
+      kind: 'odi-data-spectrum',
+      title: s.title,
+      question: s.question,
+      footer: s.footer,
+      showHills: !!showHills,
+      showFooter: !!showFooter,
+      hillColor: hillColor,
+      examples: s.examples.map(({ label, x, stem }) => ({
+        label: label,
+        x: Number(x),
+        stem: Number(stem)
+      }))
+    };
+  }
+
+  applyDataPayload(data) {
+    if (!data || typeof data !== 'object') throw new Error('File is not a JSON object.');
+    if (data.kind && data.kind !== 'odi-data-spectrum') {
+      throw new Error('This JSON is not a Data Spectrum export (expected kind "odi-data-spectrum").');
+    }
+    const rawExamples = Array.isArray(data.examples) ? data.examples : null;
+    if (!rawExamples || !rawExamples.length) throw new Error('No examples found in the file.');
+
+    const examples = rawExamples.map((ex, i) => ({
+      id: i + 1,
+      label: String(ex.label != null ? ex.label : 'Untitled'),
+      x: Math.max(0, Math.min(100, Number(ex.x) || 0)),
+      stem: Math.max(20, Math.min(160, Number(ex.stem) || 34))
+    }));
+
+    const patch = {
+      examples: examples,
+      nextId: examples.length + 1,
+      active: null
+    };
+    if (typeof data.title === 'string') patch.title = data.title;
+    if (typeof data.question === 'string') patch.question = data.question;
+    if (typeof data.footer === 'string') patch.footer = data.footer;
+    if (typeof data.showHills === 'boolean') patch.hillsOn = data.showHills;
+    if (typeof data.showFooter === 'boolean') patch.footerOn = data.showFooter;
+    if (typeof data.hillColor === 'string') patch.hill = data.hillColor;
+    this.setState(patch);
+  }
+
+  exportData = () => {
+    const payload = this.buildDataPayload();
+    const stamp = new Date().toISOString().slice(0, 10);
+    const safe = (payload.title || 'data-spectrum').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 48);
+    this.download(
+      new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' }),
+      `${safe || 'data-spectrum'}-${stamp}.json`
+    );
+  };
+
+  importDataClick = () => {
+    const input = this.fileInputRef.current;
+    if (!input) return;
+    input.value = '';
+    input.click();
+  };
+
+  importDataFile = (ev) => {
+    const file = ev.target.files && ev.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const data = JSON.parse(String(reader.result || ''));
+        this.applyDataPayload(data);
+      } catch (err) {
+        window.alert('Could not import that file.\n\n' + (err && err.message ? err.message : String(err)));
+      }
+    };
+    reader.onerror = () => window.alert('Could not read that file.');
+    reader.readAsText(file);
+  };
 
   serialize() {
     const clone = this.svgRef.current.cloneNode(true);
@@ -289,25 +428,39 @@ class Component extends DCLogic {
 
   renderVals() {
     const s = this.state;
+    const MAX_LABEL_W = 168;
+    const LINE_H = 18;
+    const PAD_X = 11;
+    const PAD_TOP = 8;
+    const PAD_BOTTOM = 7;
+
     const pins = s.examples.map(e => {
       const cx = X0 + (e.x / 100) * W;
-      const boxW = Math.round(this.measure(e.label)) + 22;
-      const boxY = BAND_TOP - e.stem - 28;
+      const lines = this.wrapLabel(e.label, MAX_LABEL_W);
+      const lineWidths = lines.map(ln => this.measure(ln));
+      const textW = Math.max(...lineWidths, 1);
+      const boxW = Math.round(Math.min(Math.max(textW, 40), MAX_LABEL_W) + PAD_X * 2);
+      const boxH = PAD_TOP + PAD_BOTTOM + lines.length * LINE_H;
+      const boxY = BAND_TOP - e.stem - boxH;
       let boxX = cx - boxW / 2;
       boxX = Math.max(X0, Math.min(X0 + W - boxW, boxX));
       let anchor = 'middle', textX = boxX + boxW / 2;
-      if (boxX <= X0 + 0.5) { anchor = 'start'; textX = boxX + 11; }
-      else if (boxX + boxW >= X0 + W - 0.5) { anchor = 'end'; textX = boxX + boxW - 11; }
+      if (boxX <= X0 + 0.5) { anchor = 'start'; textX = boxX + PAD_X; }
+      else if (boxX + boxW >= X0 + W - 0.5) { anchor = 'end'; textX = boxX + boxW - PAD_X; }
+      const firstBaseline = boxY + PAD_TOP + 12;
       return {
         label: e.label,
+        lines: lines,
         cx: Math.round(cx * 10) / 10,
         boxX: Math.round(boxX * 10) / 10,
         boxY: boxY,
         boxW: boxW,
+        boxH: boxH,
         hitX: Math.round(boxX * 10) / 10,
-        hitH: e.stem + 28,
+        hitH: e.stem + boxH,
         textX: Math.round(textX * 10) / 10,
-        textY: boxY + 19,
+        firstBaseline: firstBaseline,
+        lineH: LINE_H,
         anchor: anchor,
         stemX: Math.round(cx * 10) / 10 - 0.5,
         stemY: BAND_TOP - e.stem,
@@ -335,8 +488,14 @@ class Component extends DCLogic {
     );
 
     const pinEls = h('g', { key: 'pins' }, pins.map((p, i) => h('g', { key: i },
-      h('rect', { x: p.boxX, y: p.boxY, width: p.boxW, height: 28, fill: '#06090F', fillOpacity: 0.85, stroke: '#ffffff', strokeOpacity: p.strokeOpacity }),
-      h('text', { x: p.textX, y: p.textY, textAnchor: p.anchor, fontSize: 15, fill: '#ffffff' }, p.label),
+      h('rect', { x: p.boxX, y: p.boxY, width: p.boxW, height: p.boxH, fill: '#06090F', fillOpacity: 0.85, stroke: '#ffffff', strokeOpacity: p.strokeOpacity }),
+      h('text', { x: p.textX, textAnchor: p.anchor, fontSize: 15, fill: '#ffffff' },
+        p.lines.map((ln, li) => h('tspan', {
+          key: li,
+          x: p.textX,
+          y: p.firstBaseline + li * p.lineH
+        }, ln))
+      ),
       h('rect', { x: p.stemX, y: p.stemY, width: 1, height: p.stemH, fill: '#ffffff', fillOpacity: 0.55 }),
       h('circle', { cx: p.cx, cy: 300, r: 5.5, fill: '#ffffff' }),
       h('rect', { 'data-ui': 'hit', x: p.hitX, y: p.boxY, width: p.boxW, height: p.hitH, fill: 'transparent', cursor: 'move', onPointerDown: p.onDown })
@@ -368,6 +527,10 @@ class Component extends DCLogic {
       reset: this.reset,
       exportSvg: this.exportSvg,
       exportPng: this.exportPng,
+      exportData: this.exportData,
+      importDataClick: this.importDataClick,
+      importDataFile: this.importDataFile,
+      fileInputRef: this.fileInputRef,
       showHills: showHills,
       showFooter: showFooter,
       hillColor: hillColor,
